@@ -1,0 +1,475 @@
+---
+title: "Leading-Edge Technology in Education: Its impact on Students' Academic Behavior"
+author: "Biruk Kebede Metaferia"
+date: "January 8, 2018"
+output:
+  html_document: default
+---
+
+## Executive Summary 
+The main purpose of this project was to determine the impact of applying Leading-Edge Technology in education on students' academic behavior. To achieve this purpose kaggle public dataset was used. The analysis consists of two parts, exploratory analysis, and hypotheses testing. In the exploratory analysis part, the availability of missed data, the distribution, and the nature and possible scores of the variables in the dataset were explored using plots and other relevant functions in R. In the second part of the analysis, 4 different type/group of hypotheses were formulated and tested using the corresponding statistical methods. Accordingly, associations between students' responsible parent and their satisfaction, parents' satisfaction and students' final grade, and responsible parent and students' final grade were examined using chi-squired test.  In addition, independent sample t-test was employed to examine the difference in hand raising in male and female students. The other points addressed in this part of analysis was the correlation between announcement view and participation in discussion. The final part of the analysis dealt with multiple linear regression which was used to examine the prediction of students' hand raising by announcement view and participation in discussion. The result of the exploratory data analysis part indicated that there is no missing value in the dataset and all the quantitative variables were not normally distributed. On the other hand the results of hypothesis testing depicted that there is a statistically significant association between students' responsible parent and their satisfaction, parents' satisfaction and students' final grade, and responsible parent and students' final grade. The t-test anaysis indicated that there was a statistically significant difference in hand raising behavior between female and male students [t(478)=3.3165, p=0.0001]. The correlation test indicated that there is a statistically significant correlation between participation in discussion and announcement view [r (478)= 0.285, p <.0001]. Morever,  a significant regression equation was found (F (2, 477) = 306.12, p< .0001), in predicting students' hand raising based on visiting resources and viewing announcement. Finally, based on the results it was concluded that applying leading-edge technology in education can have positive contribution in improving students academic behavior. 
+
+
+####About the Dataset
+
+The dataset ("Students' Academic Performance Dataset") used in this project was accessed from kaggle public dataset (https://www.kaggle.com/aljarah/xAPI-Edu-Data/data). It was found in csv format (xAPI-Edu-Data.csv) with its codebook. It consists of 480 participants and 16 variables. As clearly mentioned in the introduction part of the codebook the variables in the dataset are classified into three major categories: (1) Demographic features such as gender and nationality; (2) Academic background features such as educational stage, grade Level and section; (3) Behavioral features such as raised hand on class, opening resources, answering survey by parents, and parents' school satisfaction. The dataset has no missing value from the very beginning. Generally, the dataset consists of an educational information which is collected from learning management system (LMS), that has been designed to facilitate learning through applying leading-edge technology in education. The system provides users with a synchronous access to educational resources from any device with Internet connection.The data is collected using a learner activity tracker tool, which is a component of the training and learning architecture that enables to monitor students learning progress and their actions like reading an article or watching a training video. More details about the dataset including its codebook is variable at https://www.kaggle.com/aljarah/xAPI-Edu-Data 
+
+Load the important packages
+```{r setup, message=FALSE}
+library(tidyverse)
+library(broom)
+library(psych)
+library(stargazer)
+library(car)
+```
+
+Import the dataset
+```{r message=FALSE}
+given_dataset<- read_csv(file="/Users/biruk/Dropbox/Final_R_Project/xAPI-Edu-Data.csv")
+```
+
+####Exploratory Analysis
+##### Study the variables in the dataset 
+
+Explore the nature of the variables in the dataset using summary function 
+```{r}
+summary(given_dataset)
+```
+
+Study missing values in the dataset
+```{r}
+sapply(given_dataset,function(x) sum(is.na(x)))
+```
+No variable in the dataset has missing value
+
+
+Exclude variables not to be used in this project    
+```{r}
+performance_data<-given_dataset %>% 
+ select(-PlaceofBirth, -StageID, -GradeID, -SectionID, -Semester, -ParentAnsweringSurvey, -StudentAbsenceDays)
+```
+
+
+Explor the possible scores for non-continous variables 
+```{r}
+performance_data %>% distinct(gender)
+performance_data %>% distinct(Topic)
+performance_data %>% distinct(Relation)
+performance_data %>% distinct(ParentschoolSatisfaction)
+performance_data %>% distinct(Class)
+performance_data %>% distinct(NationalITy)
+```
+Inform the nature of the qualitative variables to R
+```{r}
+subject <-factor(performance_data$Topic, levels = c("English", "Spanish", "French", "Arabic", "IT", "Math", "Chemistry", "Biology", "Science", "History", "Quran", "Geology"))
+resp_parent <- factor(performance_data$Relation, levels = c("Mum", "Father"))
+Parent_Sats <- ordered(performance_data$ParentschoolSatisfaction, levels = c("Bad", "Good"))
+final_grade <- ordered(performance_data$Class, levels = c("L", "M", "H"))
+sex <- factor(performance_data$gender, levels = c("F", "M"))
+citizenship <- factor(performance_data$NationalITy,levels = c("KW", "lebanon", "Egypt", "SaudiArabia", "USA", "Jordan", "venzuela", "Iran", "Tunis", "Morocco", "Syria", "Palestine", "Iraq", "Lybia"))
+
+```
+
+Transformed the dataset so that string variables will be changed to numberc form
+```{r}
+stud_performance_data<-performance_data %>% 
+  mutate (subject = as.integer(factor(Topic, levels = c("English", "Spanish", "French", "Arabic", "IT", "Math", "Chemistry", "Biology", "Science", "History", "Quran", "Geology"))), 
+          resp_parent = as.integer(factor(Relation, levels = c("Mum", "Father"))),
+          Parent_Sats = as.integer(factor(ParentschoolSatisfaction, levels = c("Bad", "Good"))), 
+          final_grade = as.integer(factor(Class, levels = c("L", "M", "H"))),
+          citizenship = as.integer(factor(NationalITy, levels = c("KW", "lebanon", "Egypt", "SaudiArabia", "USA", "Jordan", "venzuela", "Iran", "Tunis", "Morocco", "Syria", "Palestine", "Iraq", "Lybia"))),
+          sex = as.integer(factor(gender, levels = c("F", "M")))) %>% 
+           as_tibble()
+```
+
+*Study outliers*
+
+Explore outliers of the continous variables using boxplots and boxplot statistics functions
+
+```{r}
+
+boxplot(stud_performance_data$Discussion, stud_performance_data$raisedhands, stud_performance_data$VisITedResources, stud_performance_data$AnnouncementsView, horizontal=TRUE)
+```
+
+As can be clearly seen from the boxplots above there is no datapoint under lower limit and above upper limit in all of the four box plots. So, there is no outliers in all of the four variables.
+
+Besides the boxplots, boxplot statistics can be used to also used to check outliers. For instance, the boxplot.stats function confirmed that there is no outliers in "discussion"
+
+```{r}
+boxplot.stats(stud_performance_data$Discussion)
+```
+
+#####Check for normality of quantitative variables in the dataset
+
+```{r}
+plot (density(stud_performance_data$raisedhands))
+plot(density(stud_performance_data$Discussion))
+hist(stud_performance_data$VisITedResources)
+hist(stud_performance_data$AnnouncementsView)
+```
+
+As can be seen from the plots above, the distribution of variables "raisedhands", "Discussion", "VisITedResources" and "AnnouncementsView" are not normal.   
+
+####Visualization of the variables in the dataset
+
+The composition of student participants in terms of the Subjects/courses can be indicated using pie plot. 
+```{r}
+pie(table(stud_performance_data$Topic))
+```
+
+The composition of student participants in terms of their citizenship can be communicated using bar plot
+```{r fig.width=15, fig.height=8}
+barplot(table(stud_performance_data$NationalITy), xlab = 'citizenship', ylab = 'Number Of Participants')
+```
+
+
+###Hypotheses Testing
+
+Test for association 
+
+*Is there association between students' responsible parent and their satisfaction?*
+```{r}
+table(resp_parent, Parent_Sats)
+chisq.test(table(resp_parent, Parent_Sats))
+```
+
+The chi-squared test result indicated that there is a satatistically significant association between students' responsible parent for students education and their satisfaction (??2 (1, N = 480) = 38.541, p < .0001).  
+
+plot the result 
+```{r}
+plot(resp_parent, Parent_Sats, ylab = "Parents' satisfaction", xlab = "Responsible parent for students education")
+```
+  
+The plot communicates that larger proportion of participants in mothers group have good satisfaction than fathers group
+
+*Is there association between parents' satisfaction and their children's final grade score?*
+
+```{r}
+table(Parent_Sats, final_grade)
+chisq.test(table(Parent_Sats, final_grade))
+```
+
+Chi-squire test depicted that there was a statistically significant association between patents' satisfaction and their children's final grade score (??2 (2, N = 480) = 68.47, p < .0001). 
+
+Now show the result in plot
+```{r}
+plot(Parent_Sats, final_grade, ylab = "Student's final grade score", xlab = "Parents satisfaction")
+```
+
+The plot showed that larger portion of students from parents who have good satisfaction scored better grade than students whose parents have bad satisfaction.  
+
+###Test for group difference
+*Is there difference in studetns' hand raising as a function of their sex?* 
+
+Examine the assumptions for parametric test to decide the statistical test to be used. In this regard, independence of observations is automatic as the two observations are completely independent (male and female).
+
+Do box plot to examine the equivalence of variance between the two groups
+
+```{r}
+boxplot(stud_performance_data$raisedhands~sex)
+```
+
+The boxplot indicates that the variances of the two groups are almost the same. This can also be verified usng Levene's Test
+
+```{r}
+leveneTest(stud_performance_data$raisedhands~sex) 
+```
+Levene's Test confirmed that the difference in variance the two groups is not significant.  
+
+Now conduct t-test to verify/refute the hypothesis
+
+```{r}
+t.test(stud_performance_data$raisedhands~stud_performance_data$sex, mu=0, alt="two.sided", conf=0.95, var.eq=T, paired=F)
+```
+
+To include SD statistics in the report calculate it 
+
+```{r}
+sd(stud_performance_data$raisedhands[sex=="F"])
+sd(stud_performance_data$raisedhands[sex=="M"])
+```
+
+So, an independent-samples t-test was conducted to compare students hand raising as a function of their sex. The result indicated that there was a significant difference in hand raising if male (M=43.282, SD=30.602) and female (F=52.863, SD=30.218) students [t(478)=3.3165, p=0.0001].
+
+
+### Correlation
+
+*Is there a statistical significant relationship between  announcement view and participation in discussion?*
+
+In the exploratory analysis part it was confirmed that the distribution of both announcement view and discussion were not normal. 
+
+So, Check the the transform of the scores if it helps for normality 
+
+```{r}
+log_Discussion<-log(stud_performance_data$Discussion)
+qqnorm(log_Discussion, col='blue')
+qqline(log_Discussion, col ="red")
+```
+
+```{r}
+log_AnnouncementsView<-log(stud_performance_data$AnnouncementsView + 1) 
+qqnorm(log_AnnouncementsView, col='blue')
+qqline(log_AnnouncementsView, col ="red")
+```
+
+Still the transformation of the scores in both variables didn't help them for normality 
+
+Plot to examine monotonic relationship between the two variables to use Kendall's tau.
+```{r}
+plot(stud_performance_data$Discussion, stud_performance_data$AnnouncementsView, main="scatterplot", las=1)
+```
+
+The plot shows that it fulfilled the assumption of monotonic relationship 
+ 
+Now conduct correlation test
+```{r}
+cor.test(stud_performance_data$Discussion, stud_performance_data$AnnouncementsView, method="kendall")
+```
+A Kendall's tau coefficient was computed to assess the relationship between the announcement view and students' participation in discussion. The result depicted that there is a significant correlation between the two variables [r (478)= 0.285, p <.0001].
+
+###Regression Analysis
+
+* Do resource visiting and announcement viewing significantly predict students hand raising behavior? 
+
+
+The relationship among the variables used in the hypothesis is studied using plot matrix (used to check the linearity of relationship between IVs with DV)
+
+```{r}
+plot(stud_performance_data[5:7], pch=16, col="blue", main="Matrix Scatterplot of raisedhands, VisITedResources, AnnouncementsView")
+```
+
+As can be seen from the plot matrix the assumption of linear relationship between IVs and DV is fulfilled.
+
+
+Explore the jointed effect of visiting resource and announcement vewing on handraising using coplot function.
+
+```{r}
+coplot(raisedhands~VisITedResources|AnnouncementsView, panel = panel.smooth, stud_performance_data)
+coplot(raisedhands ~AnnouncementsView|VisITedResources, panel = panel.smooth, stud_performance_data)
+```
+
+Check for multicollinearity using correlation matrix of independent variables. Just for the sake of more understanding it is possible to include also the dependent variable.  
+
+```{r}
+library(corrplot)
+check_cor = cor(stud_performance_data[5:7])
+corrplot(check_cor, method = "number")
+```
+
+The correlation matrix table depicted that the magnitude of the correlation coefficients between independent variables are below the cutoff (.80). There for multicollinearity is not an issue here.
+
+
+
+Now, construct a linear model and residual diagnosis 
+
+Fit the first model and conduct the corresponding residual diagnosis
+
+```{r}
+lm1<-lm(raisedhands~VisITedResources + AnnouncementsView, data=stud_performance_data)
+summary(lm1)
+```
+The p value indicates that both VisITedResources and AnnouncementsView significantly contribute  to the model and hence both of them should be keept.
+
+Diagnose the distribution of the residuals in the model. 
+
+```{r}
+par(mfrow=c(2, 2))
+plot(lm1)
+```
+
+From the plot it is possible to observe that residuals are randomly distributed around regression line. Besides, from the Q-Q plot, it seems that residuals follow normal distribution. So, residuals in the this model have passed the test of Normality.
+
+The scale-location plot is a bit bent from the horizonal ideal line and but still it would approximatley indicate that residuals have uniform variance across the range.
+
+
+Now, fit the second model where both predictors and their interaction together are considered.
+
+```{r}
+lm2<-lm(raisedhands~VisITedResources*AnnouncementsView, data=stud_performance_data)
+summary(lm2)
+par(mfrow=c(2, 2))
+plot(lm2)
+```
+
+In this model, compared with model 1 above, the F-Statistic fall down from 306.1 to 203.9. However, no substantial change was seen in residual standard error and adjusted R-square value.
+
+
+Now, take only interaction between the two predictors and fit as the third model
+```{r}
+lm3<-lm(raisedhands~VisITedResources:AnnouncementsView, data=stud_performance_data)
+summary(lm3)
+par(mfrow=c(2, 2))
+plot(lm3)
+```
+
+Compared to the first model, in this model adjusted R-squared value gets down while residual standard error almost stayed the same. On the other hand, the F-statistic get improved from 306.1 to 469.7 almost for the same degree of freedom. 
+
+
+Now, let's fix the confidence intervals for parameters.
+
+```{r}
+confint(lm1, level = 0.95)
+confint(lm2, level = 0.95)
+confint(lm3, level = 0.95)
+```
+
+
+**Model selection**  
+compare the models using broom::glance()
+```{r}
+glance(lm1)
+glance(lm2)
+glance(lm3)
+```
+
+Based on the principle to choose a model with the smallest logLik, AIC, and BIC with the same df, the first model (lm1) is selected.
+
+To confirm model selection annova function can be used
+```{r}
+anova(lm1, lm2)
+anova(lm1, lm3)
+```
+
+Anova test for model comparision showed that there is no significant difference between the first and the second models(F=0.5674, df=1).  
+
+F value indicated that there is significant difference between the first and the third model in favor of the first.
+Threfore, anova analysis aslo comfirmed that the first model is the winner. 
+
+Normal distribution of resuduals in the winner model can be confirmed again as follows
+
+```{r warning=FALSE}
+stud_performance_data %>% 
+  augment(lm(raisedhands~VisITedResources + AnnouncementsView, data = .), .) %>% 
+  ggplot() +
+  aes(.resid) +
+  geom_histogram(bins = 10)
+```
+
+The residuals of the selected model are approximatelly normally distributed!
+
+This can be also confirmed using statistical method
+```{r warning=FALSE}
+stud_performance_data %>% 
+  augment(lm(raisedhands ~ VisITedResources*AnnouncementsView, data = .), .) %>% 
+  pull(.resid) %>% 
+  shapiro.test(.)
+```
+
+The Shapiro-Wilks test also confirmed that the residuals are normally distributed (p=0.07819). Theforfore,  the model is valid.   
+
+Now, report the results of multiple regression anaysis in table form. 
+
+```{r}
+library(stargazer) 
+library(knitr)
+```
+
+```{r, results='hide', message=FALSE}
+Models_table <-
+  stargazer(lm1,
+            lm2,
+            lm3,
+            coef = list(lm1$standardized.coefficients,
+                        lm2$standardized.coefficients,
+                        lm3$standardized.coefficients),
+            title = "Model comparison",
+            dep.var.labels = "Hand Raising",
+            align = TRUE,
+            ci = TRUE,
+            df = TRUE,
+            digits = 2,
+            type = "html")
+```
+  
+  
+```{r warning=FALSE, results='hold', message=FALSE}
+kable(Models_table)
+```
+  
+#Also add standardized coefficients
+
+Transform the non-standardized values using the lm.beta package
+```{r}
+library(lm.beta)
+```
+
+Create standardized versions from all objects
+```{r}
+lm1_std <- lm.beta(lm1)
+lm2_std <- lm.beta(lm2)
+lm3_std <- lm.beta(lm3)
+```
+
+
+explicitly tell stargazer which coefficients we want to see
+
+```{r results='hide'}
+results_table<-
+  stargazer(lm1_std,
+            lm2_std,
+            lm3_std,
+            coef = list(lm1_std$standardized.coefficients,
+                        lm2_std$standardized.coefficients,
+                        lm3_std$standardized.coefficients),
+                        
+            title = "Model comparison",
+            dep.var.labels = "Raising Hand",
+            align = TRUE,
+            ci = TRUE,
+            df = TRUE,
+            digits = 2,
+            type = "html")
+
+```
+
+
+```{r warning=FALSE}
+kable(results_table)
+```
+
+A multiple linear regression was calculated to predict hand raising based on visiting resources and viewing announcement. A significant regression equation was found (F (2, 477) = 306.12, p< .0001), with an R2 =0.56. Participants' predicted hand raising is equal to 6.64 + 0.44 (visiting resource)  + 0.42 (viewing announcement). Both resource visit and announcement view were significant predictors of hand raising frequency.
+
+
+
+## Conclusion
+
+The main goal of this project was to examine the effect of applying Leading-Edge Technology in Education on students academic behavior. To achieve this goal different research questions were formulated and relevant statistical tests were employed. Base on the results it was concluded that:
+
+1.Students academic performance gets better when the responsible parent for students' education is mother, and when parents get satisfied with their children's education.
+
+2.Students hand raising behavior is associated with their sex. Female students are better in hand raising than their counterparts.
+
+3.There is an association between announcement view and participation in discussion.
+
+4.Students' hand raising is better predicted by visiting resources and announcement viewing.    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

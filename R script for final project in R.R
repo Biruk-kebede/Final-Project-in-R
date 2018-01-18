@@ -1,0 +1,310 @@
+library(tidyverse)
+library(broom)
+library(psych)
+library(stargazer)
+library(car)
+install.packages("pander")
+require(knitr)
+
+#working directory adjusted
+setwd("/Users/biruk/Dropbox/Final_R_Project")
+
+#importing the data
+given_dataset<- read_csv(file="/Users/biruk/Dropbox/Final_R_Project/xAPI-Edu-Data.csv")
+
+library(stargazer)
+#Exploratory Data Analysis -----------------------------------------------
+
+# study the data using summary function 
+summary(given_dataset)
+
+## Exclude variables not to be used in this project       
+performance_data<-given_dataset %>% 
+ select(-PlaceofBirth, -StageID, -GradeID, -SectionID, -Semester, -ParentAnsweringSurvey, -StudentAbsenceDays)
+
+#missing values  
+sapply(performance_data,function(x) sum(is.na(x)))
+# no missing value in the dataset
+
+
+# Examine the possible scores for qualitative variables in the given dataset   
+performance_data %>% distinct(gender)
+performance_data %>% distinct(Topic)
+performance_data %>% distinct(Relation)
+performance_data %>% distinct(ParentschoolSatisfaction)
+performance_data %>% distinct(Class)
+performance_data %>% distinct(NationalITy)
+
+
+##Inform the nature of the qualitative variables to R
+subject <-factor(performance_data$Topic, levels = c("English", "Spanish", "French", "Arabic", "IT", "Math", "Chemistry", "Biology", "Science", "History", "Quran", "Geology"))
+resp_parent <- factor(performance_data$Relation, levels = c("Mum", "Father"))
+Parent_Sats <- ordered(performance_data$ParentschoolSatisfaction, levels = c("Bad", "Good"))
+final_grade <- ordered(performance_data$Class, levels = c("L", "M", "H"))
+sex <- factor(performance_data$gender, levels = c("F", "M"))
+citizenship <- factor(performance_data$NationalITy,levels = c("KW", "lebanon", "Egypt", "SaudiArabia", "USA", "Jordan", "venzuela", "Iran", "Tunis", "Morocco", "Syria", "Palestine", "Iraq", "Lybia"))
+
+
+## Transformed the dataset so that qualitavie variables will be changed to numberc form
+stud_performance_data<-performance_data %>% 
+  mutate (subject = as.integer(factor(Topic, levels = c("English", "Spanish", "French", "Arabic", "IT", "Math", "Chemistry", "Biology", "Science", "History", "Quran", "Geology"))), 
+          resp_parent = as.integer(factor(Relation, levels = c("Mum", "Father"))),
+          Parent_Sats = as.integer(factor(ParentschoolSatisfaction, levels = c("Bad", "Good"))), 
+          final_grade = as.integer(factor(Class, levels = c("L", "M", "H"))),
+          citizenship = as.integer(factor(NationalITy, levels = c("KW", "lebanon", "Egypt", "SaudiArabia", "USA", "Jordan", "venzuela", "Iran", "Tunis", "Morocco", "Syria", "Palestine", "Iraq", "Lybia"))),
+          sex = as.integer(factor(gender, levels = c("F", "M")))) %>% 
+           as_tibble()
+
+
+## save the transformed data
+write_csv(stud_performance_data, 'stud_performance_data.csv')
+View(stud_performance_data)
+
+
+## check outliers for all the four continous variables using boxplot
+boxplot(stud_performance_data$Discussion, stud_performance_data$raisedhands, stud_performance_data$VisITedResources, stud_performance_data$AnnouncementsView, horizontal=TRUE)
+
+#As can be clearly seen from the boxplots above all of the four continous variables in the dataset donot have outliers
+
+#Besides the boxplots, boxplot statistics were also checked that no outliers found in all the four variables mentioned above. Just to demostrate one of them 
+boxplot.stats(stud_performance_data$Discussion)
+
+
+# visualization of the variables in the dataset
+## students vs subjects
+pie(table(stud_performance_data$Topic))
+
+## Participants citizenship composition 
+barplot(table(stud_performance_data$NationalITy), xlab = 'citizenship', ylab = 'Number Of Participants')
+
+## check for normality of quantitative variables in the dataset
+plot (density(stud_performance_data$raisedhands))
+plot(density(stud_performance_data$Discussion))
+hist(stud_performance_data$VisITedResources)
+hist(stud_performance_data$AnnouncementsView)
+#As can be seen from the plots above, the variables "raisedhands", "Discussion", "VisITedResources" and "AnnouncementsView" are not normally distributed  
+
+## raising hands vs discussion 
+with(stud_performance_data,plot(Discussion, raisedhands))
+
+# Test for association  ---------------------------------------------------
+
+## is there association between responsible parent and their satisfaction?
+table(resp_parent, Parent_Sats)
+chisq.test(table(resp_parent, Parent_Sats))
+### there is significant association between responsible parent and their satisfaction 
+
+# plot the result 
+plot(resp_parent, Parent_Sats, ylab = "Parents' satisfaction", xlab = "Responsible parent for students education")
+##larger proportion of participants from mum group have good satisfaction than fathers group
+
+
+# is there association between parents' satisfaction and their children's final grade score?
+table(Parent_Sats, final_grade)
+chisq.test(table(Parent_Sats, final_grade))
+# stastically significant association is found between parents' satisfaction and their chilfen's final grade 
+
+# show the result in plot
+plot(Parent_Sats, final_grade, ylab = "final_grade", xlab = "Parent_Sats")
+## the result depicted that there is relationship between parents satisfaction and their childen's final grade score
+###larer proporsion of students with good parental satisfaction scored better grade than students whose parents have bad satisfaction. 
+
+
+#is there association between responsible parent and students' final grade?
+table(resp_parent, final_grade)
+chisq.test(table(resp_parent, final_grade))
+## chisqured test indicated that there is a significant association between responsible parent and their children's  
+
+ ## result plotted 
+plot(resp_parent, final_grade, ylab = "final_grade", xlab = "resp_parent")
+## relatively speaking larger proporstion of students followed by their mums scored high in the final grade compare with their counterpars 
+## in addition, students who scored lower grade came from families whose education is followed by their fathers than their mums 
+
+
+# is there association between subject taught and final grade scored?
+table(subject, final_grade)
+chisq.test(table(subject, final_grade))
+## chisqured test showed that there is difference in final grade scored as a function of subjects. 
+
+###plot the result
+plot(subject, final_grade, ylab = "final_grade", xlab = "subject")
+### the plot clearly depicted that no students from Geograph class scored lower grade
+### bigger proporsion of stdents scored low final grade in IT class compared to proporsion of students who scored same in other subject group
+### bigger proporsion of students from bilogy group scored high grade compared with proporsion of students who scored same in other subject group
+
+# Test for group difference---------------------------------------------------
+ #Does sex make difference in students' handraising? 
+    # Ho: mean of handraising of female is equal to male
+
+## Examine the assumptions for parametric test 
+# Independent observations is automatic as the two observations are completely independent (male and female)
+#Based on the central limit theorem if the sample size is large enough (n > 30), we can ignore the distribution of the data and use parametric tests.
+  ## Do box plot to examine the equivalence of variance between the two groups
+boxplot(raisedhands~sex) 
+
+# the boxplot indicates that the variances of the two groups are almost the same. This can also be verified usng Levene's Test
+leveneTest(raisedhands~sex) 
+
+# it is confirmed that the difference in variance is not significant  
+
+## Now conduct t-test to verify/refute the hypothesis
+  t.test(raisedhands~sex, mu=0, alt="two.sided", conf=0.95, var.eq=T, paired=F)
+## to include SD statistics in the report calculate it 
+sd(raisedhands[sex=="F"])
+sd(raisedhands[sex=="M"])
+   
+  
+##correlation--------------------------------------------------------
+
+# Is there a statistically significant relationship between students announcement view and participation in discussion?
+## check for the density distribution of the variables to check for normality to select appropriate technique of correlation
+plot((density(stud_performance_data$AnnouncementsView)), main="Kernel Density of announcement view distribution")
+plot((density(stud_performance_data$Discussion)), main="Kernel Density of Discussion distribution")
+## the plots indicated that both variables are not normally distributed therefore the case cannot be handled by Pearson product-moment corr under this condition
+
+## transform the scores if it helps to get normal
+log_Discussion<-log(stud_performance_data$Discussion)
+qqnorm(log_Discussion, col='blue')
+qqline(log_Discussion, col ="red")
+
+log_AnnouncementsView<-log(stud_performance_data$AnnouncementsView + 1) # there is score 0 in log_AnnouncementsView variable
+qqnorm(log_AnnouncementsView, col='blue')
+qqline(log_AnnouncementsView, col ="red")
+## still the transformation of the scores in both variable indicated that they are normally distributed after transformation
+
+## plot to examine monotonic relationship between the two variables to use Kendall's tau. 
+plot(Discussion, AnnouncementsView, main="scatterplot", las=1)
+# the plot shows that it fulfilled the assumption of monotonic relationship 
+
+# conduct correlation test
+cor.test(Discussion, AnnouncementsView, method="kendall")
+
+## correlation test depicted that there is signficant correlation between the two variables (tau=0.2851579, p<.0001)
+
+
+# Regression Analysis Part ------------------------------------------------
+  
+# Do resource visiting and announcement viewing significantly predict students hand raising behavior? 
+
+#the relationship among the variables used in the hypothesis was studied using plot matrix (used to check the linearity of relationship between IVs with DV)
+  plot(stud_performance_data[5:7], pch=16, col="blue", main="Matrix Scatterplot of raisedhands, VisITedResources, AnnouncementsView")
+
+##As can be seen from the plot matrix the assumption of linear relationship between IVS and DV is fulfilled.
+
+# Explore the jointed effect of resources visiting and announcement vewing on handrising using plot
+coplot(raisedhands~VisITedResources|AnnouncementsView, panel = panel.smooth, stud_performance_data)
+coplot(raisedhands ~AnnouncementsView|VisITedResources, panel = panel.smooth, stud_performance_data)
+
+### Check for multicollinearity of independent variables using correlation matrix 
+library(corrplot)
+check_cor = cor(stud_performance_data[5:7])
+corrplot(check_cor, method = "number")
+## the correlations between the independent variables are below the cutoff (0.8)
+
+#Construct a Linear model and conduct residual diagnosis 
+# fit the first model and conduct the corresponding residual diagnosis
+lm1<-lm(raisedhands~VisITedResources + AnnouncementsView, data=stud_performance_data)
+par(mfrow=c(2, 2))
+plot(lm1)
+summary(lm1)
+
+# the p value indicates that both independent variables contribute significantly to the model and hence both of them should be keept.
+# both predictors and their interaction together are fited to the second model
+lm2<-lm(raisedhands~VisITedResources*AnnouncementsView, data=stud_performance_data)
+par(mfrow=c(2, 2))
+plot(lm2)
+summary(lm2)
+
+# only interaction between the two predictors 
+lm3<-lm(raisedhands~VisITedResources:AnnouncementsView, data=stud_performance_data)
+par(mfrow=c(2, 2))
+plot(lm3)
+summary(lm3)
+
+# confidence intervals for parameters
+confint(lm1, level = 0.95)
+confint(lm2, level = 0.95)
+confint(lm3, level = 0.95)
+
+## Model selection
+#### comparing models using broom::glance()
+glance(lm1)
+glance(lm2)
+glance(lm3)
+# based on the principle to choose a model with the smallest logLik, AIC, and BIC with the same df
+## the first model (lm1) is selected
+
+
+#### to cross check and confirm model selection annova function can be used
+anova(lm1, lm2)
+anova(lm1, lm3)
+### anova test for model comparision showed that there is not signifivcant difference between the first and the seond model(F=0.5674, df=1)
+### F value indicated that there is significant difference between the first and third model in favor of the first.
+### threfore, anova analysis aslo comfirmed that the first model is the winner. 
+
+#normal distribution of resuduals is checked for the wining model
+stud_performance_data %>% 
+  augment(lm(raisedhands~VisITedResources + AnnouncementsView, data = .), .) %>% 
+  ggplot() +
+  aes(.resid) +
+  geom_histogram(bins = 10)
+# the residuals of the selected model are approximatelly normally distributed!!
+
+# this can be confirmed using statistical method
+stud_performance_data %>% 
+  augment(lm(raisedhands ~ VisITedResources*AnnouncementsView, data = .), .) %>% 
+  pull(.resid) %>% 
+  shapiro.test(.)
+# The Shapiro-Wilks test confirmed that the residuals are normally distributed (p=0.07819)
+
+# report the results of regression in table
+library(stargazer) 
+
+Models_table_html <-
+  stargazer(lm1,
+            lm2,
+            lm3,
+            coef = list(lm1$standardized.coefficients,
+                        lm2$standardized.coefficients,
+                        lm3$standardized.coefficients),
+            
+            title = "Model comparison",
+            dep.var.labels = "Raising Hand",
+            align = TRUE,
+            ci = TRUE,
+            df = TRUE,
+            digits = 2,
+            type = "html")
+
+write_lines(trial_table_html, "trial_table.html")
+
+# also add standardized coefficients
+# transform the non-standardized values using the lm.beta package
+install.packages("lm.beta")
+library(lm.beta)
+
+# Create standardized versions from all objects
+lm1_std <- lm.beta(lm1)
+lm2_std <- lm.beta(lm2)
+lm3_std <- lm.beta(lm3)
+
+# explicitly tell stargazer which coefficients we want to see
+results_table_html <-
+  stargazer(lm1_std,
+            lm2_std,
+            lm3_std,
+            coef = list(lm1_std$standardized.coefficients,
+                        lm2_std$standardized.coefficients,
+                        lm3_std$standardized.coefficients),
+                        
+            title = "Model comparison",
+            dep.var.labels = "Raising Hand",
+            align = TRUE,
+            ci = TRUE,
+            df = TRUE,
+            digits = 2,
+            type = "html")
+
+write_lines(results_table_html, "results_table.html")
+
+
