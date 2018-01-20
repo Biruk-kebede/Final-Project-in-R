@@ -441,10 +441,10 @@ The main goal of this project was to examine the effect of applying Leading-Edge
 
 3.There is an association between announcement view and participation in discussion.
 
-4.Students' hand raising is better predicted by visiting resources and announcement viewing.    
+4.Students' hand raising is significantly predicted by visiting resources and announcement viewing.    
 
 
-Biruk Kebede
+
 
 
 
