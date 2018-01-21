@@ -21,11 +21,19 @@ library(broom)
 library(psych)
 library(stargazer)
 library(car)
+library(ggfortify)
 ```
+
+Adjust working directory 
+
+```{r}
+setwd("/Users/biruk/Dropbox/Final Project in R")
+```
+
 
 Import the dataset
 ```{r message=FALSE}
-given_dataset<- read_csv(file="/Users/biruk/Dropbox/Final_R_Project/xAPI-Edu-Data.csv")
+given_dataset<- read_csv(file="/Users/biruk/Dropbox/Final Project in R/xAPI-Edu-Data.csv")
 ```
 
 ####Exploratory Analysis
@@ -119,7 +127,7 @@ pie(table(stud_performance_data$Topic))
 
 The composition of student participants in terms of their citizenship can be communicated using bar plot
 ```{r fig.width=15, fig.height=8}
-barplot(table(stud_performance_data$NationalITy), xlab = 'citizenship', ylab = 'Number Of Participants')
+barplot(table(stud_performance_data$NationalITy), xlab = 'participants citizenship', ylab = 'Number Of Participants')
 ```
 
 
@@ -225,30 +233,33 @@ Now conduct correlation test
 ```{r}
 cor.test(stud_performance_data$Discussion, stud_performance_data$AnnouncementsView, method="kendall")
 ```
+
+plot the result by using different color for gender just for the sake of enhancing informativity of the plot
+
+```{r}
+stud_performance_data %>% 
+  ggplot() +
+  aes(x = AnnouncementsView, y = Discussion) +
+  geom_point(aes(color = gender), size = 3) +
+  geom_smooth(method = "lm")
+```
+
 A Kendall's tau coefficient was computed to assess the relationship between the announcement view and students' participation in discussion. The result depicted that there is a significant correlation between the two variables [r (478)= 0.285, p <.0001].
 
 ###Regression Analysis
 
-* Do resource visiting and announcement viewing significantly predict students hand raising behavior? 
+* Do resource visiting and announcement viewing significantly predict students hand raising?   
 
-
-The relationship among the variables used in the hypothesis is studied using plot matrix (used to check the linearity of relationship between IVs with DV)
-
+The relationship among the variables used in the hypothesis was studied using plot matrix (used to check the linearity of relationship between IVs with DV)
+  
 ```{r}
 plot(stud_performance_data[5:7], pch=16, col="blue", main="Matrix Scatterplot of raisedhands, VisITedResources, AnnouncementsView")
 ```
 
-As can be seen from the plot matrix the assumption of linear relationship between IVs and DV is fulfilled.
+As can be seen from the plot matrix the assumption of linear relationship between IVS and DV is fulfilled.
 
-
-Explore the jointed effect of visiting resource and announcement vewing on handraising using coplot function.
-
-```{r}
-coplot(raisedhands~VisITedResources|AnnouncementsView, panel = panel.smooth, stud_performance_data)
-coplot(raisedhands ~AnnouncementsView|VisITedResources, panel = panel.smooth, stud_performance_data)
-```
-
-Check for multicollinearity using correlation matrix of independent variables. Just for the sake of more understanding it is possible to include also the dependent variable.  
+The next step could be to check for multicollinearity of independent variables. 
+It would be better to start this process by looking at correlation matrix among the variables 
 
 ```{r}
 library(corrplot)
@@ -256,51 +267,122 @@ check_cor = cor(stud_performance_data[5:7])
 corrplot(check_cor, method = "number")
 ```
 
-The correlation matrix table depicted that the magnitude of the correlation coefficients between independent variables are below the cutoff (.80). There for multicollinearity is not an issue here.
+As can be seen from the correlation matrix the correlation between the two independent variables is 0.59, which is below the cutoff (.8) 
 
-
-
-Now, construct a linear model and residual diagnosis 
-
-Fit the first model and conduct the corresponding residual diagnosis
+Fit a Linear model and continue testing its assumptions 
 
 ```{r}
 lm1<-lm(raisedhands~VisITedResources + AnnouncementsView, data=stud_performance_data)
 summary(lm1)
 ```
-The p value indicates that both VisITedResources and AnnouncementsView significantly contribute  to the model and hence both of them should be keept.
 
-Diagnose the distribution of the residuals in the model. 
+Now assess multicollinearity using the variance inflaction factor (VIF)
 
 ```{r}
-par(mfrow=c(2, 2))
-plot(lm1)
+car::vif(lm1)
+```
+The values look ok as they are not very large. However as the average of VIF is larger than 1, it seems that multicollineratity is a bit biasing the model. 
+
+```{r}
+mean(car::vif(lm1))
+```
+
+So, look at the tolerance.
+
+```{r}
+1/car::vif(lm1)
+```
+
+The tolerance value seems it is good as it is in the range of 0 and 1.
+
+Now, assess the independence of residuals
+
+```{r}
+car::dwt(lm1)
+```
+The result indicates that there seems autocorrelation between the the two independent variables, so the residuals may not be independent.
+
+To check heteroscetasticity inspect the residual diagnostic plots.
+
+```{r}
+autoplot(lm1, which = 1:6, label.size = 3)
 ```
 
 From the plot it is possible to observe that residuals are randomly distributed around regression line. Besides, from the Q-Q plot, it seems that residuals follow normal distribution. So, residuals in the this model have passed the test of Normality.
 
 The scale-location plot is a bit bent from the horizonal ideal line and but still it would approximatley indicate that residuals have uniform variance across the range.
 
+Examine the outliers if there is concrete reason to eliminate theme. There is no concrete reason to eliminate them. 
 
-Now, fit the second model where both predictors and their interaction together are considered.
+```{r}
+stud_performance_data %>% 
+  slice(c(96, 178, 187, 345, 382))
+```
 
+
+Fit the second model which consists of both predictors and their interaction together.
 ```{r}
 lm2<-lm(raisedhands~VisITedResources*AnnouncementsView, data=stud_performance_data)
 summary(lm2)
-par(mfrow=c(2, 2))
-plot(lm2)
 ```
 
-In this model, compared with model 1 above, the F-Statistic fall down from 306.1 to 203.9. However, no substantial change was seen in residual standard error and adjusted R-square value.
+The p value indicates that the interaction between the two independent variables doesn't significantly contribute to the model. Besides, in the model, compared with model 1 above, the F-Statistic fall down from 306.1 to 203.9. However, no substantial change was seen in residual standard error and adjusted R-square value.
+
+The VIF of the model indicated that the interaction between the two variables has a score of 15.007, which is larger than 10. So, multicollinearity is an issue here.  
+
+```{r}
+car::vif(lm2)
+```
+
+In addition, the the average of VIF score (9.273) confirms that multicollineratity is biasing the model.
+
+```{r}
+mean(car::vif(lm2))
+```
+
+The tolerance also indicates that except visiting resources the other two variables (announcement and interaction between announcement view and visiting resource) have not tolerable.
+
+```{r}
+1/car::vif(lm2)
+```
+
+Measure the independence of residuals
+
+```{r}
+car::dwt(lm2)
+```
+
+It seems that the model has some significant autocorrelation, so the residuals are not independent. 
+To check heteroscetasticity inspect the residual diagnostic plots.
+
+```{r}
+autoplot(lm2, which = 1:6, label.size = 3)
+```
 
 
-Now, take only interaction between the two predictors and fit as the third model
+Fit the third model which includes only the interaction between the two predictors and continue testing linear regression model assumptions 
+
 ```{r}
 lm3<-lm(raisedhands~VisITedResources:AnnouncementsView, data=stud_performance_data)
 summary(lm3)
-par(mfrow=c(2, 2))
-plot(lm3)
 ```
+
+In this model the p value indicates that the interaticon of the independent variables significantly contribute to the model.
+
+Assess the independence of residuals in the model.
+
+```{r}
+car::dwt(lm3)
+```
+
+The result indicates that there seems autocorrelation between the the two independent variables, so the residuals may not be independent again.
+
+To check heteroscetasticity inspect the residual diagnostic plots of the model.
+
+```{r}
+autoplot(lm3, which = 1:6, label.size = 3)
+```
+
 
 Compared to the first model, in this model adjusted R-squared value gets down while residual standard error almost stayed the same. On the other hand, the F-statistic get improved from 306.1 to 469.7 almost for the same degree of freedom. 
 
@@ -355,7 +437,21 @@ stud_performance_data %>%
   shapiro.test(.)
 ```
 
-The Shapiro-Wilks test also confirmed that the residuals are normally distributed (p=0.07819). Theforfore,  the model is valid.   
+The Shapiro-Wilks test also confirmed that the residuals are normally distributed (p=0.07819). Theforfore,  the model is valid. 
+
+Explore the jointed effect of visiting resource and announcement vewing on handraising using coplot function.
+
+```{r}
+coplot(raisedhands~VisITedResources|AnnouncementsView, panel = panel.smooth, stud_performance_data)
+```
+
+By loading important packages plot the result of the model in 3D.
+
+```{r}
+library(plotly)
+plot_ly(stud_performance_data, y= ~stud_performance_data$raisedhands, x= ~stud_performance_data$AnnouncementsView, z= ~stud_performance_data$VisITedResources)
+
+```
 
 Now, report the results of multiple regression anaysis in table form. 
 
@@ -385,6 +481,13 @@ Models_table <-
 ```{r warning=FALSE, results='hold', message=FALSE}
 kable(Models_table)
 ```
+  
+  
+```{r}
+stargazer(lm1, lm2, lm3, title = "Model comparison", align = TRUE, type = "text")
+```
+
+  
   
 #Also add standardized coefficients
 
@@ -441,35 +544,6 @@ The main goal of this project was to examine the effect of applying Leading-Edge
 
 3.There is an association between announcement view and participation in discussion.
 
-4.Students' hand raising is significantly predicted by visiting resources and announcement viewing.    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+4.Visiting resources and viewing announcements are significant predictors of hand raising. 
 
 
