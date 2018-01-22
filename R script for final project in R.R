@@ -338,15 +338,6 @@ library(car)
 scatter3d(y=stud_performance_data$raisedhands, x=stud_performance_data$AnnouncementsView, z=stud_performance_data$VisITedResources)
 
 
-
-
-
-
-
-
-
-
-
 # report the results of regression in table
 Models_table_html <-
   stargazer(lm1,
