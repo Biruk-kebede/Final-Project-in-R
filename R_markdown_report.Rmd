@@ -29,7 +29,8 @@ Import the dataset
 given_dataset<- read_csv(file="/Users/biruk/Dropbox/Final Project in R/xAPI-Edu-Data.csv")
 ```
 
-####Exploratory Analysis
+####Exploratory Analysis  
+
 *Study the variables in the dataset* 
 
 Explore the nature of the variables in the dataset using summary function 
@@ -49,7 +50,6 @@ No variable in the dataset has missing value
 performance_data<-given_dataset %>% 
  select(-PlaceofBirth, -StageID, -GradeID, -SectionID, -Semester, -ParentAnsweringSurvey, -StudentAbsenceDays)
 ```
-
 
 Explore the possible scores for non-continous variables 
 ```{r}
@@ -123,12 +123,12 @@ The composition of student participants in terms of their citizenship can be com
 barplot(table(stud_performance_data$NationalITy), xlab = 'participants citizenship', ylab = 'Number Of Participants')
 ```
 
-
 ###Hypotheses Testing
 
 ####Test for association 
 
 *Is there association between students' responsible parent and their satisfaction?*
+
 ```{r}
 table(resp_parent, Parent_Sats)
 chisq.test(table(resp_parent, Parent_Sats))
@@ -505,7 +505,6 @@ explicitly tell stargazer which coefficients we want to see
             df = TRUE,
             digits = 2,
             type = "html")
-
 ```
 
 A multiple linear regression was calculated to predict hand raising based on visiting resources and viewing announcement. A significant regression equation was found (F (2, 477) = 306.12, p< .0001), with an R2 =0.56. Participants' predicted hand raising is equal to 6.64 + 0.44 (visiting resource)  + 0.42 (viewing announcement). Both resource visit and announcement view were significant predictors of hand raising frequency.
