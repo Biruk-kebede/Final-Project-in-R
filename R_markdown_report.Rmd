@@ -392,7 +392,7 @@ confint(lm3, level = 0.95)
 ```
 
 
-**Model selection**  
+**Model Comparison**  
 compare the models using broom::glance()
 ```{r}
 glance(lm1)
